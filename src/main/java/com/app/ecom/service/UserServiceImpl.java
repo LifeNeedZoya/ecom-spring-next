@@ -9,6 +9,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.app.ecom.config.JwtUtil;
+import com.app.ecom.enums.USER_ROLE;
+import com.app.ecom.exception.AccessDeniedException;
 import com.app.ecom.model.Cart;
 import com.app.ecom.model.User;
 import com.app.ecom.repository.CartRepository;
@@ -18,11 +20,9 @@ import com.app.ecom.request.LoginReq;
 import com.app.ecom.response.AuthResponse;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final CartRepository cartRepository;
@@ -33,14 +33,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void register(CreateUserReq req) {
-        if(userRepository.findByEmail(req.getEmail()).isPresent()) {
+        if (userRepository.findByEmail(req.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
 
-        User newUser = new User();
-        newUser.setEmail(req.getEmail());
-        newUser.setFullName(req.getFullName());
-        newUser.setPassword(passwordEncoder.encode(req.getPassword()));
+        User newUser = User.builder()
+                .email(req.getEmail())
+                .password(passwordEncoder.encode(req.getPassword()))
+                .role(USER_ROLE.ROLE_USER)
+                .fullName(req.getFullName())
+                .mobile(req.getMobile())
+                .build();
+
         userRepository.save(newUser);
 
         Cart cart = new Cart();
@@ -50,12 +54,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User getUser(String jwt) {
-        log.debug("Getting user details for JWT: {}", jwt);
 
         jwt = jwt.substring(7);
         String email = jwtUtil.extractUsername(jwt);
-        System.out.println("Email: extracted form jwt " + email);
-        
+
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
@@ -71,11 +73,58 @@ public class UserServiceImpl implements UserService {
         }
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(req.getEmail());
+
+
+        String role = userDetails.getAuthorities().stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("User has no roles assigned"))
+                .getAuthority();
+
+
         final String jwt = jwtUtil.generateToken(userDetails);
 
         AuthResponse authResponse = new AuthResponse();
         authResponse.setJwt(jwt);
         authResponse.setMessage("Successfully logged in");
+        authResponse.setRole(role);
         return authResponse;
     }
+
+    @Override
+    public AuthResponse adminLogin(LoginReq req) {
+
+        User user = userRepository.findByEmail(req.getEmail()).orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != USER_ROLE.ROLE_ADMIN){
+            throw new AccessDeniedException("You do not have permission to access this resource");
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            throw new BadCredentialsException("Incorrect email or password", e);
+        }
+
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(req.getEmail());
+
+
+        String role = userDetails.getAuthorities().stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("User has no roles assigned"))
+                .getAuthority();
+
+        if(role == "ROLE_USER"){
+            throw new AccessDeniedException("You do not have permission to access this resource");
+        }
+        final String jwt = jwtUtil.generateToken(userDetails);
+
+        AuthResponse authResponse = new AuthResponse();
+        authResponse.setJwt(jwt);
+        authResponse.setMessage("Successfully logged in");
+        authResponse.setRole(role);
+        return authResponse;
+    }
+
 }

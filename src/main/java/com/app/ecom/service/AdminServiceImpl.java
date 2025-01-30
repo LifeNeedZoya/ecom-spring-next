@@ -1,74 +1,79 @@
 package com.app.ecom.service;
 
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import com.app.ecom.config.JwtUtil;
-import com.app.ecom.model.Admin;
-import com.app.ecom.repository.AdminRepository;
-import com.app.ecom.request.LoginReq;
-import com.app.ecom.response.AuthResponse;
+import com.app.ecom.enums.USER_STATUS;
+import com.app.ecom.model.User;
+import com.app.ecom.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class AdminServiceImpl implements AdminService {
-
-    private final AdminRepository adminRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
-    private final CustomAdminDetailsService customAdminDetailsService;
-    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
     @Override
-    public Admin addAdmin(Admin admin) {
+    public User changeUserStatus(Long id, USER_STATUS status) {
+        User user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        USER_STATUS userStatus = user.getStatus();
 
-        Admin newAdmin = Admin.builder()
-                .email(admin.getEmail())
-                .password(passwordEncoder.encode(admin.getPassword()))
-                .role("ROLE_ADMIN")
-                .build();
-
-        return adminRepository.save(newAdmin);
+        if (userStatus != status) {
+            user.setStatus(status);
+            return userRepository.save(user);   
+        }
+        return user;
     }
 
     @Override
-    public Admin updateAdmin(Admin admin, Long id) {
-        Admin existingAdmin = adminRepository.findById(id).orElseThrow(()->
-                new IllegalArgumentException("No admin found with id: " + id));
-
-        if (admin.getEmail()!=null) {
-            existingAdmin.setEmail(admin.getEmail());
-        }
-
-        if (admin.getPassword()!=null) {
-            existingAdmin.setPassword(passwordEncoder.encode(admin.getPassword()));
-        }
-
-        return  adminRepository.save(existingAdmin);
+    public List<User> getUsersByStatus(USER_STATUS status) {
+        List<User> users = userRepository.findByStatus(status);
+        return users;
     }
 
     @Override
-    public AuthResponse loginAdmin(LoginReq req) {
-        try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword())
-            );
-        } catch (BadCredentialsException e) {
-            throw new BadCredentialsException("Incorrect email or password", e);
-        }
-
-        UserDetails adminDetails =  customAdminDetailsService.loadUserByUsername(req.getEmail());
-        String jwt = jwtUtil.generateToken(adminDetails);
-        AuthResponse authResponse = new AuthResponse();
-        authResponse.setJwt(jwt);
-        authResponse.setMessage("Admin successfully logged in");
-
-        return authResponse;
+    public Long getAllUsersNumbers() {
+        Long usersNumbers = userRepository.getTotalUsersCount();
+        return usersNumbers;
     }
+
+    @Override
+    public Long getUserCountByMonth(int year, int month) {
+        return userRepository.countUsersByMonth(year, month);
+    }
+
+    @Override
+    public Long getThisMonthUserCount() {
+        LocalDate today = LocalDate.now();
+        
+        int monthNumber = today.getMonthValue();
+        int year = today.getYear();
+
+        return userRepository.countUsersByMonth(year, monthNumber);
+        
+    }
+
+    @Override
+    public Page<User> getUsers(int page, int size, String sortBy, String search) {
+
+        String sortDirection = "asc"; 
+        Sort sort = Sort.by(
+            sortDirection.equalsIgnoreCase("desc") ? Sort.Order.desc(sortBy) : Sort.Order.asc(sortBy)
+        );
+        
+        Pageable pageable = PageRequest.of(page, size, sort);
+        
+        if (search != null && !search.isEmpty()) {
+            return userRepository.searchUsers(search, pageable);
+        }
+        return userRepository.findAll(pageable);
+    }
+
 }

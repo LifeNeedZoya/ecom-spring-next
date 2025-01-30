@@ -9,12 +9,14 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
 @Builder
 public class Admin {
     @Id
@@ -28,6 +30,4 @@ public class Admin {
     @NotNull
     private String password;
     private String role = "ROLE_ADMIN";
-
-
 }

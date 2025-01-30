@@ -9,4 +9,5 @@ public interface UserService {
     public void register(CreateUserReq request);
     public AuthResponse login(LoginReq request);
     public User getUser(String jwt);
+    public AuthResponse adminLogin(LoginReq request);
 }

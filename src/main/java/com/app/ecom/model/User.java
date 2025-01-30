@@ -1,21 +1,37 @@
 package com.app.ecom.model;
 
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
+
+import com.app.ecom.enums.USER_ROLE;
+import com.app.ecom.enums.USER_STATUS;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Data
 @AllArgsConstructor
 @EqualsAndHashCode
 @NoArgsConstructor
+@Builder
 public class User {
 
     @Id
@@ -31,10 +47,26 @@ public class User {
 
     private String mobile;
 
+    @Enumerated(EnumType.STRING)
+    private USER_ROLE role;
 
+    @Builder.Default
     @OneToMany
     private Set<Address> addresses = new HashSet<>();
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    private USER_STATUS status = USER_STATUS.ACTIVE;
+
+    private LocalDateTime createdAt;
+
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+        this.status = USER_STATUS.ACTIVE;
+    }
+
+    @Builder.Default
     @ManyToMany
     @JsonIgnore
     @JoinTable(name = "user_used_coupons",

@@ -1,12 +1,19 @@
 package com.app.ecom.service;
 
-import com.app.ecom.model.Admin;
-import com.app.ecom.request.LoginReq;
-import com.app.ecom.response.AuthResponse;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+
+import com.app.ecom.enums.USER_STATUS;
+import com.app.ecom.model.User;
 
 public interface AdminService {
-    Admin addAdmin(Admin admin);
-    Admin updateAdmin(Admin admin, Long id);
-    AuthResponse loginAdmin(LoginReq request);
-    
-} 
+
+    public User changeUserStatus(Long id, USER_STATUS status);
+    public List<User> getUsersByStatus(USER_STATUS status);
+    public Long getAllUsersNumbers();
+    public Long getUserCountByMonth(int year, int month);
+    public Long getThisMonthUserCount();
+    public Page<User> getUsers(int page, int size, String sortBy, String search);
+
+}

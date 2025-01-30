@@ -1,6 +1,7 @@
 package com.app.ecom.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,6 +37,14 @@ public class UserController {
     @PostMapping("/auth/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginReq request){
         AuthResponse authResponse = userService.login(request);
+
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @PreAuthorize("has_role('ROLE_ADMIN')")
+    @PostMapping("/auth/admin/login")
+    public ResponseEntity<AuthResponse> adminLogin(@RequestBody LoginReq request){
+        AuthResponse authResponse = userService.adminLogin(request);
 
         return ResponseEntity.ok(authResponse);
     }
